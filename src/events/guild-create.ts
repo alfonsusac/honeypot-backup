@@ -24,37 +24,38 @@ const handler: EventHandler<GatewayDispatchEvents.GuildCreate> = {
             let config = await db.getConfig(guild.id);
             if (config) return;
 
+            // auto-creation of a #honeypot channel is disabled; admins must run /honeypot to pick an existing channel
             let channelId = null as null | string;
             let msgId = null as null | string;
             let setupSuccess = false;
-            try {
-                const { id: channId, new: isNewChannel } = await findOrCreateHoneypotChannel(api, guild, applicationId);
-                channelId = channId;
-                msgId = await postWarning(api, channelId, applicationId, "softban", 0);
-                setupSuccess = true;
-                if (isNewChannel) {
-                    sendIntroMessage(api, redis, channelId)
-                        .catch((err) => console.log(`Failed to send intro message: ${err}`))
-                        .then((introMsgId) => introMsgId &&
-                            checkSetupAndWarn(api, channelId!, applicationId, redis, guild)
-                        ).catch((err) => console.log(`Failed to check setup and send warning msg: ${err}`))
-                } else {
-                    checkSetupAndWarn(api, channelId, applicationId, redis, guild)
-                        .catch((err) => console.log(`Failed to check setup and send warning msg: ${err}`))
-                }
-            } catch (err) {
-                setupSuccess = false;
-                const discordErr = err instanceof DiscordAPIError ? err : null;
-                if (discordErr && (discordErr.code === RESTJSONErrorCodes.UnknownChannel)) {
-                    channelId = null;
-                    msgId = null;
-                    console.log(styleText("dim", `Failed to create/send honeypot message: ${err}`));
-                } else if (discordErr && (discordErr.code === RESTJSONErrorCodes.MissingPermissions || discordErr.code === RESTJSONErrorCodes.MissingAccess)) {
-                    console.log(styleText("dim", `Failed to create/send honeypot message: ${err}`));
-                } else {
-                    console.log(`Failed to create/send honeypot message: ${err}`);
-                }
-            }
+            // try {
+            //     const { id: channId, new: isNewChannel } = await findOrCreateHoneypotChannel(api, guild, applicationId);
+            //     channelId = channId;
+            //     msgId = await postWarning(api, channelId, applicationId, "softban", 0);
+            //     setupSuccess = true;
+            //     if (isNewChannel) {
+            //         sendIntroMessage(api, redis, channelId)
+            //             .catch((err) => console.log(`Failed to send intro message: ${err}`))
+            //             .then((introMsgId) => introMsgId &&
+            //                 checkSetupAndWarn(api, channelId!, applicationId, redis, guild)
+            //             ).catch((err) => console.log(`Failed to check setup and send warning msg: ${err}`))
+            //     } else {
+            //         checkSetupAndWarn(api, channelId, applicationId, redis, guild)
+            //             .catch((err) => console.log(`Failed to check setup and send warning msg: ${err}`))
+            //     }
+            // } catch (err) {
+            //     setupSuccess = false;
+            //     const discordErr = err instanceof DiscordAPIError ? err : null;
+            //     if (discordErr && (discordErr.code === RESTJSONErrorCodes.UnknownChannel)) {
+            //         channelId = null;
+            //         msgId = null;
+            //         console.log(styleText("dim", `Failed to create/send honeypot message: ${err}`));
+            //     } else if (discordErr && (discordErr.code === RESTJSONErrorCodes.MissingPermissions || discordErr.code === RESTJSONErrorCodes.MissingAccess)) {
+            //         console.log(styleText("dim", `Failed to create/send honeypot message: ${err}`));
+            //     } else {
+            //         console.log(`Failed to create/send honeypot message: ${err}`);
+            //     }
+            // }
             await db.setConfig({
                 guild_id: guild.id,
                 log_channel_id: null,
@@ -69,7 +70,7 @@ const handler: EventHandler<GatewayDispatchEvents.GuildCreate> = {
             if (!setupSuccess && guild.system_channel_id) {
                 try {
                     await api.channels.createMessage(guild.system_channel_id, {
-                        content: `👋 Thanks for adding the honeypot bot! Please run /honeypot to finish setup.\n-# The bot couldn’t create or send the warning message automatically.`,
+                        content: `👋 Thanks for adding the honeypot bot! Please run /honeypot to pick an existing channel to use as the honeypot.`,
                         allowed_mentions: {}
                     });
                 } catch (err) {
